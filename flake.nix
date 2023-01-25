@@ -16,6 +16,8 @@
           version = "0.1.0";
           src = ./.;
           cargoLock.lockFile = ./Cargo.lock;
+
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
         };
 
         packages.default = self.packages.${system}.${projectName};
@@ -38,6 +40,15 @@
             nodejs-19_x
             nodePackages_latest.eask
           ];
+
+          nativeBuildInputs = with pkgs; [
+            llvmPackages_14.libclang
+            llvmPackages_14.libcxxClang
+            clang
+          ];
+
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang}/lib";
+          BINDGEN_EXTRA_CLANG_ARGS = "-isystem ${pkgs.emacs}/include";
         };
       });
 }
