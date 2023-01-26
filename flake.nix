@@ -17,7 +17,19 @@
           src = ./.;
           cargoLock.lockFile = ./Cargo.lock;
 
-          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+          nativeBuildInputs = with pkgs; [ llvmPackages_14.libclang emacs ];
+
+          LIBCLANG_PATH = "${pkgs.llvmPackages_14.libclang.lib}/lib";
+          BINDGEN_EXTRA_CLANG_ARGS = with pkgs;
+            lib.concatStringsSep " " [
+              (builtins.readFile "${stdenv.cc}/nix-support/libc-crt1-cflags")
+              (builtins.readFile "${stdenv.cc}/nix-support/libc-cflags")
+              (builtins.readFile "${stdenv.cc}/nix-support/cc-cflags")
+              "-isystem ${llvmPackages_14.libclang.lib}/lib/clang/${
+                lib.getVersion llvmPackages_14.libclang
+              }/include"
+              "-isystem ${emacs}/include"
+            ];
         };
 
         packages.default = self.packages.${system}.${projectName};
@@ -41,14 +53,19 @@
             nodePackages_latest.eask
           ];
 
-          nativeBuildInputs = with pkgs; [
-            llvmPackages_14.libclang
-            llvmPackages_14.libcxxClang
-            clang
-          ];
+          nativeBuildInputs = with pkgs; [ llvmPackages_14.libclang ];
 
-          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang}/lib";
-          BINDGEN_EXTRA_CLANG_ARGS = "-isystem ${pkgs.emacs}/include";
+          LIBCLANG_PATH = "${pkgs.llvmPackages_14.libclang.lib}/lib";
+          BINDGEN_EXTRA_CLANG_ARGS = with pkgs;
+            lib.concatStringsSep " " [
+              (builtins.readFile "${stdenv.cc}/nix-support/libc-crt1-cflags")
+              (builtins.readFile "${stdenv.cc}/nix-support/libc-cflags")
+              (builtins.readFile "${stdenv.cc}/nix-support/cc-cflags")
+              "-isystem ${llvmPackages_14.libclang.lib}/lib/clang/${
+                lib.getVersion llvmPackages_14.libclang
+              }/include"
+              "-isystem ${emacs}/include"
+            ];
         };
       });
 }

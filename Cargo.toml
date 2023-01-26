@@ -8,13 +8,11 @@ license = "GPL-3.0-or-later"
 
 [lib]
 path = "src/lib.rs"
-
-# we need to specify "cdylib" because our project has to output a shared object
-# file
 crate-type = ["cdylib"]
 
 [dependencies]
-libc = "0.2.139"
+libc = "0.2"
+# reqwest = "0.11.14"
 
 [build-dependencies]
 bindgen = "0.63.0"
