@@ -12,7 +12,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 libc = "0.2"
-# reqwest = "0.11.14"
+hyper = { version = "1.0.0-rc.3", features = ["full"] }
 
 [build-dependencies]
 bindgen = "0.63.0"
