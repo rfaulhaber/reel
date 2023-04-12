@@ -1,3 +1,26 @@
 #+title: reel
 
 Rust-based HTTP implementation for Emacs.
+
+* Examples
+Reel's API is roughly based off of [[https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API][JavaScript's fetch API]].
+
+By default, all Reel requests are async. You can wait for them by using
+~reel-await~.
+
+#+begin_src emacs-lisp :eval never
+(reel "https://example.com") ;; GETs "https://example.com" asynchronously
+
+(reel-await
+ (reel "https://example.com"))
+#+end_src
+
+The ~reel~ function allows you to specify a number of options.
+
+#+begin_src emacs-lisp :eval never
+
+(reel "https://example.com"
+      :method "POST"
+      :headers '((Content-Type . "application/json"))
+      )
+#+end_src
