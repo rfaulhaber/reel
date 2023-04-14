@@ -13,6 +13,7 @@ crate-type = ["cdylib"]
 [dependencies]
 libc = "0.2"
 hyper = { version = "1.0.0-rc.3", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 
 [build-dependencies]
 bindgen = "0.63.0"

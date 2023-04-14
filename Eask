@@ -5,7 +5,7 @@
 (website-url "https://github.com/rfaulhaber/reel")
 (keywords "lisp")
 
-(package-file "reel.el")
+(package-file "reel.el" "reel-*.el")
 
 (script "test" "echo \"Error: no test specified\" && exit 1")
 

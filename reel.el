@@ -29,14 +29,30 @@
     (message "loading %s" path)
     (module-load path)))
 
-(cl-defstruct reel-response
+(cl-defstruct (reel-request
+               (:constructor reel-make-request)
+               (:copier nil))
+  "An HTTP request."
+  (method nil :read-only t)
+  (headers nil :read-only t)
+  (mode nil :read-only t)
+  (cache nil :read-only t)
+  (credentials nil :read-only t)
+  (redirect nil :read-only t)
+  (referrer-policy nil :read-only t)
+  (body nil :read-only t))
+
+(cl-defstruct (reel-response
+               (:constructor reel-make-response)
+               (:copier nil))
   "An HTTP response."
   (status nil :read-only t)
   (headers nil :read-only t)
   (body nil :read-only t))
 
+
 ;;;###autoload
-(cl-defun reel (url &key method headers body)
+(cl-defun reel (url &key method headers mode cache credentials redirect referrer-policy body)
   ;; TODO
   )
 
