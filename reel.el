@@ -53,8 +53,18 @@
 
 ;;;###autoload
 (cl-defun reel (url &key method headers mode cache credentials redirect referrer-policy body)
-  ;; TODO
-  )
+  "Make an HTTP request with URL.
+The key arguments will adjust the behavior of the request.
+
+METHOD is a symbol and one of: GET HEAD POST PUT DELETE CONNECT OPTIONS TRACE
+PATCH
+
+HEADERS is an alist of header/value pairs. E.g. `\'((Content-Type .
+application/json))'. Keys and values are stringified.
+
+
+"
+  (reel--execute-request url method headers mode cache credentials redirect referrer-policy body))
 
 (defun reel-format-query-parameters (url query-params)
   ;; TODO
