@@ -1,77 +1,112 @@
-#![allow(non_upper_case_globals)]
-#![allow(non_camel_case_types)]
-#![allow(non_snake_case)]
+use emacs::{defun, Env, FromLisp, Result as EmacsResult, Value, Vector};
+use std::collections::HashMap;
 
-mod request;
+emacs::plugin_is_GPL_compatible!();
 
-use std::ffi::CString;
-
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
-
-macro_rules! fset {
-    ($env:expr, $name:expr, $fn:expr) => {
-        let intern = (*$env)
-            .intern
-            .expect("could not get intern from Emacs environment!");
-
-        let fset = intern($env, CString::new("fset").unwrap().into_raw());
-
-        let funcall = (*$env).funcall.expect("could not get funcall");
-
-        let symbol = intern(
-            $env,
-            CString::new($name)
-                .expect("could not invoke CString::new")
-                .into_raw(),
-        );
-
-        funcall($env, fset, 2, [symbol, $fn].as_mut_ptr())
-    };
+#[emacs::module(name = "reel-dyn")]
+fn init(env: &Env) -> EmacsResult<()> {
+    // This is run when Emacs loads the module.
+    // More concretely, it is run after all the functions it defines are exported,
+    // but before `(provide 'feature-name)` is (automatically) called.
+    Ok(())
 }
 
-#[no_mangle]
-#[allow(non_upper_case_globals)]
-pub static plugin_is_GPL_compatible: libc::c_int = 0;
-
-#[no_mangle]
-pub unsafe extern "C" fn emacs_module_init(ert: *mut emacs_runtime) -> libc::c_int {
-    let env = (*ert)
-        .get_environment
-        .expect("cannot get environment from Emacs")(ert);
-
-    let make_function = (*env).make_function.expect("cannot get make_function!");
-
-    let reel_execute_request_fn = make_function(
-        env,
-        9,
-        9,
-        Some(reel_execute_request),
-        CString::new("Executes an HTTP request.")
-            .expect("could not invoke CString::new")
-            .into_raw(),
-        std::ptr::null_mut(),
-    );
-
-    fset!(env, "reel--execute-request", reel_execute_request_fn);
-
-    todo!("Finish writing this function!")
+#[derive(Debug)]
+struct ReelHeader {
+    name: String,
+    value: String,
 }
 
-pub unsafe extern "C" fn reel_execute_request(
-    env: *mut emacs_env,
-    nargs: isize,
-    args: *mut emacs_value,
-    data: *mut std::os::raw::c_void,
-) -> emacs_value {
-    let req_builder = hyper::Request::builder();
+impl ReelHeader {
+    fn name(&self) -> &str {
+        self.name.as_ref()
+    }
 
-    todo!("finish!");
+    fn value(&self) -> &str {
+        self.value.as_ref()
+    }
 }
 
-unsafe fn get_req_from_emacs_value(args: *mut emacs_value) -> Result<(), ()> {
-    let url = *args.offset(0);
-    let method = *args.offset(1);
-    let headers = *args.offset(1);
+#[derive(Debug)]
+pub enum ReelMethod {
+    GET,
+    HEAD,
+    POST,
+    PUT,
+    DELETE,
+    CONNECT,
+    OPTIONS,
+    TRACE,
+    PATCH,
+}
 
+#[derive(Debug)]
+struct LispList<T>(Vec<T>)
+where
+    T: for<'a> FromLisp<'a>;
+
+impl FromLisp<'_> for ReelHeader {
+    fn from_lisp(value: Value<'_>) -> EmacsResult<Self> {
+        let car = value.env.call("car", [value])?.into_rust()?;
+        let cdr = value.env.call("cdr", [value])?.into_rust()?;
+
+        Ok(ReelHeader {
+            name: car,
+            value: cdr,
+        })
+    }
+}
+
+impl<T: for<'a> emacs::FromLisp<'a>> FromLisp<'_> for LispList<T> {
+    fn from_lisp(value: Value<'_>) -> EmacsResult<Self> {
+        let vec_intern = value.env.intern("vector")?;
+        let new_vec: Vector = value.env.call("apply", (vec_intern, value))?.into_rust()?;
+
+        let mut lst = Vec::new();
+
+        for e in new_vec {
+            lst.push(e.into_rust()?);
+        }
+
+        Ok(LispList(lst))
+    }
+}
+
+impl FromLisp<'_> for ReelMethod {
+    fn from_lisp(value: Value<'_>) -> EmacsResult<Self> {
+        let method_str: String = value.into_rust()?;
+
+        match method_str.as_str() {
+            "GET" => Ok(ReelMethod::GET),
+            "HEAD" => Ok(ReelMethod::HEAD),
+            "POST" => Ok(ReelMethod::POST),
+            "PUT" => Ok(ReelMethod::PUT),
+            "DELETE" => Ok(ReelMethod::DELETE),
+            "CONNECT" => Ok(ReelMethod::CONNECT),
+            "OPTIONS" => Ok(ReelMethod::OPTIONS),
+            "TRACE" => Ok(ReelMethod::TRACE),
+            "PATCH" => Ok(ReelMethod::PATCH),
+            _ => Err(emacs::Error::msg("invalid HTTP method")),
+        }
+    }
+}
+
+#[defun]
+fn execute_request(
+    url: String,
+    method: ReelMethod,
+    headers: Option<LispList<ReelHeader>>,
+    body: Option<String>,
+) -> EmacsResult<()> {
+    println!("args:");
+    println!("url: {}", url);
+    println!("method: {:?}", method);
+    println!("headers: {:?}", headers);
+    println!("body: {:?}", body);
+
+    Ok(())
+}
+
+fn extract_headers(headers: Value) -> HashMap<String, String> {
     todo!();
 }
