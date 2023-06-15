@@ -8,7 +8,7 @@
 ;; Modified: January 25, 2023
 ;; Version: 0.1.0
 ;; Keywords: lisp
-;; Homepage: https://github.com/ryan/reel
+;; Homepage: https://github.com/rfaulhaber/reel
 ;; Package-Requires: ((emacs "25.2"))
 ;;
 ;; This file is not part of GNU Emacs.
@@ -35,7 +35,7 @@
                    ('windows-nt "dll")))
          (path (format "./target/%s/libreel.%s" env system)))
     (message "loading %s" path)
-    (module-load path)
+    (module-load (expand-file-name path))
     (message "feature? %s" (featurep 'reel-dyn))))
 
 (defconst reel-http-methods '(GET HEAD POST PUT DELETE CONNECT OPTIONS TRACE PATCH)
@@ -65,7 +65,7 @@
 ;; TODO create FormData
 
 ;;;###autoload
-(cl-defun reel (url &key method headers body)
+(cl-defun reel (url &key method headers body mode credentials cache redirect referrer-policy integrity keepalive)
   "Make an HTTP request with URL.
 The key arguments will adjust the behavior of the request.
 
@@ -75,15 +75,17 @@ PATCH
 HEADERS is an alist of header/value pairs. E.g. `\'((Content-Type .
 application/json))'. Keys and values are treated as strings.
 
+BODY is the string representation of the request body.
+
+`reel' is asynchronous, and will not block under any circumstance. This function
+also does not accept callbacks. In order to block this request, wrap the call in
+`reel-await'.
 
 "
-  (when (not (symbolp method))
-    (user-error "Method must be a symbol."))
-
-  (when (not (member method reel-http-methods))
-    (user-error "Invalid method found: %s" method))
-
-  (reel-dyn-execute-request url (symbol-name method) headers body))
+  (reel-dyn-execute-request url (if (null method)
+                                    "GET"
+                                  (symbol-name method))
+                            headers body))
 
 (defun reel-format-query-parameters (url query-params)
   ;; TODO
