@@ -4,7 +4,7 @@ use hyper::{
     http::{uri::Scheme, HeaderName, HeaderValue},
 };
 use once_cell::sync::Lazy;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, marker::PhantomData, sync::Arc};
 use tokio::{
     net::TcpStream,
     runtime::{Builder, Runtime},
@@ -119,23 +119,37 @@ impl<'e> FromLisp<'e> for ReelRequest<'_> {
     }
 }
 
-struct ReelResponse {
-    status: hyper::StatusCode,
-    body: Bytes,
-    headers: hyper::HeaderMap,
+struct ReelResponse<'r> {
+    status: u16,
+    body: &'r str,
+    headers: HashMap<String, String>,
 }
 
-impl<'e> IntoLisp<'e> for ReelResponse {
+impl<'e, 'r> IntoLisp<'e> for ReelResponse<'r> {
     fn into_lisp(self, env: &'e Env) -> EmacsResult<Value<'_>> {
-        todo!()
+        let mut cons_cells = Vec::with_capacity(self.headers.len());
+
+        for (key, value) in self.headers.iter() {
+            cons_cells.push(env.cons(key, value)?);
+        }
+
+        let list = env.list(&cons_cells)?;
+
+        let vec = env.vector((self.status, String::from(self.body), list))?;
+
+        Ok(vec)
     }
 }
 
-impl<T> From<hyper::Response<T>> for ReelResponse {
-    fn from(value: hyper::Response<T>) -> Self {
-        todo!()
-    }
-}
+// impl<'r, T> From<hyper::Response<T>> for ReelResponse<'r> {
+//     fn from(value: hyper::Response<T>) -> Self {
+//         ReelResponse {
+//             status: value.status().as_u16(),
+//             body: value.body(),
+//             headers: (),
+//         }
+//     }
+// }
 
 #[defun]
 fn execute_request(
@@ -192,7 +206,7 @@ fn execute_request(
 
     println!("request: {:?}", hyper_req);
 
-    let res = RUNTIME.block_on(make_request(hyper_req));
+    let res = RUNTIME.block_on(make_request(hyper_req))?;
 
     Ok(())
 }

@@ -54,13 +54,13 @@
 ;;   (referrer-policy nil :read-only t)
 ;;   (body nil :read-only t))
 
-;; (cl-defstruct (reel-response
-;;                (:constructor reel-make-response)
-;;                (:copier nil))
-;;   "An HTTP response."
-;;   (status nil :read-only t)
-;;   (headers nil :read-only t)
-;;   (body nil :read-only t))
+(cl-defstruct (reel-response
+               (:constructor reel-make-response)
+               (:copier nil))
+  "An HTTP response."
+  (status nil :read-only t)
+  (headers nil :read-only t)
+  (body nil :read-only t))
 
 ;; TODO create FormData
 
