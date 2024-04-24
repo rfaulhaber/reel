@@ -62,6 +62,12 @@
   (headers nil :read-only t)
   (body nil :read-only t))
 
+(cl-defstruct (reel-client
+               (:constructor reel--make-client)
+               (:copier nil))
+  "Client object for making multiple requests."
+  user-agent use-cookies default-headers timeout connect-timeout proxy --internal-ref)
+
 ;; TODO create FormData
 
 ;;;###autoload
@@ -86,6 +92,9 @@ also does not accept callbacks. In order to block this request, wrap the call in
                                     "GET"
                                   (symbol-name method))
                             headers body))
+
+(cl-defun reel-make-client (&key user-agent use-cookies default-headers timeout connect-timeout proxy &allow-other-keys)
+  )
 
 (defun reel-format-query-parameters (url query-params)
   ;; TODO

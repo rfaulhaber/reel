@@ -16,19 +16,19 @@
 
       # NOTE: we shouldn't have to manually add libiconv, but this gets around
       # an issue with building cargo on darwin
-      nativeBuildInputs = with pkgs; [llvmPackages_16.libclang llvmPackages_16.clangUseLLVM emacs libiconv];
+      nativeBuildInputs = with pkgs; [llvmPackages_16.libclang llvmPackages_16.clangUseLLVM emacs libiconv pkg-config openssl];
 
       libclangPath = "${pkgs.llvmPackages_16.libclang.lib}/lib";
       bindgenExtraClangArgs = with pkgs;
-          lib.concatStringsSep " " [
-            (builtins.readFile "${stdenv.cc}/nix-support/libc-crt1-cflags")
-            (builtins.readFile "${stdenv.cc}/nix-support/libc-cflags")
-            (builtins.readFile "${stdenv.cc}/nix-support/cc-cflags")
-            "-isystem ${llvmPackages_16.libclang.lib}/lib/clang/${
-              lib.getVersion llvmPackages_16.libclang
-            }/include"
-            "-isystem ${emacs}/include"
-          ];
+        lib.concatStringsSep " " [
+          (builtins.readFile "${stdenv.cc}/nix-support/libc-crt1-cflags")
+          (builtins.readFile "${stdenv.cc}/nix-support/libc-cflags")
+          (builtins.readFile "${stdenv.cc}/nix-support/cc-cflags")
+          "-isystem ${llvmPackages_16.libclang.lib}/lib/clang/${
+            lib.getVersion llvmPackages_16.libclang
+          }/include"
+          "-isystem ${emacs}/include"
+        ];
     in rec {
       packages.${projectName} = pkgs.rustPlatform.buildRustPackage {
         pname = projectName;
@@ -59,7 +59,7 @@
           rustup
 
           emacs
-          nodejs_20
+          nodejs_21
           nodePackages_latest.eask
         ];
 
