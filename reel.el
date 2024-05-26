@@ -41,18 +41,18 @@
 (defconst reel-http-methods '(GET HEAD POST PUT DELETE CONNECT OPTIONS TRACE PATCH)
   "Valid HTTP methods.")
 
-;; (cl-defstruct (reel-request
-;;                (:constructor reel-make-request)
-;;                (:copier nil))
-;;   "An HTTP request."
-;;   (method nil :read-only t)
-;;   (headers nil :read-only t)
-;;   (mode nil :read-only t)
-;;   (cache nil :read-only t)
-;;   (credentials nil :read-only t)
-;;   (redirect nil :read-only t)
-;;   (referrer-policy nil :read-only t)
-;;   (body nil :read-only t))
+(cl-defstruct (reel-request
+               (:constructor reel-make-request)
+               (:copier nil))
+  "An HTTP request."
+  (method nil :read-only t)
+  (headers nil :read-only t)
+  (mode nil :read-only t)
+  (cache nil :read-only t)
+  (credentials nil :read-only t)
+  (redirect nil :read-only t)
+  (referrer-policy nil :read-only t)
+  (body nil :read-only t))
 
 (cl-defstruct (reel-response
                (:constructor reel-make-response)
@@ -88,10 +88,13 @@ also does not accept callbacks. In order to block this request, wrap the call in
 `reel-await'.
 
 "
-  (reel-dyn-execute-request url-or-request (if (null method)
-                                               "GET"
-                                             (symbol-name method))
-                            headers body))
+  (if (reel-request-p url-or-request)
+      (with-slots (url method headers body) url-or-request
+        (reel-dyn-execute-request url (symbol-name method) headers body))
+    (reel-dyn-execute-request url-or-request (if (null method)
+                                                 "GET"
+                                               (symbol-name method))
+                              headers body)))
 
 (cl-defun reel-make-client (&key user-agent use-cookies default-headers timeout connect-timeout proxy &allow-other-keys)
   )
