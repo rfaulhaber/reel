@@ -71,7 +71,7 @@
 ;; TODO create FormData
 
 ;;;###autoload
-(cl-defun reel (url &key method headers body mode credentials cache redirect referrer-policy integrity keepalive)
+(cl-defun reel (url-or-request &key method headers body mode credentials cache redirect referrer-policy integrity keepalive)
   "Make an HTTP request with URL.
 The key arguments will adjust the behavior of the request.
 
@@ -88,9 +88,9 @@ also does not accept callbacks. In order to block this request, wrap the call in
 `reel-await'.
 
 "
-  (reel-dyn-execute-request url (if (null method)
-                                    "GET"
-                                  (symbol-name method))
+  (reel-dyn-execute-request url-or-request (if (null method)
+                                               "GET"
+                                             (symbol-name method))
                             headers body))
 
 (cl-defun reel-make-client (&key user-agent use-cookies default-headers timeout connect-timeout proxy &allow-other-keys)
@@ -104,9 +104,9 @@ also does not accept callbacks. In order to block this request, wrap the call in
 ;;  :port 8000
 ;;  :endpoints '(("/foo" . (lambda (request) "hello"))))
 
-(cl-defun reel-server (&key port responses)
-  ;; TODO
-  )
+;; (cl-defun reel-server (&key port responses)
+;;   ;; TODO
+;;   )
 
 (provide 'reel)
 ;;; reel.el ends here

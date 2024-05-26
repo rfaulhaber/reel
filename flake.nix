@@ -59,11 +59,11 @@
           rustup
 
           emacs
-          nodejs_21
+          nodePackages_latest.nodejs
           nodePackages_latest.eask
         ];
 
-        nativeBuildInputs = nativeBuildInputs;
+        inherit nativeBuildInputs;
 
         LIBCLANG_PATH = libclangPath;
         BINDGEN_EXTRA_CLANG_ARGS = bindgenExtraClangArgs;
