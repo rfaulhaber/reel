@@ -156,7 +156,8 @@ dependencies = [
 [[package]]
 name = "emacs"
 version = "0.19.0"
-source = "git+https://github.com/ubolonton/emacs-module-rs#01e73220cf35f57bc882a145d6a8417a3ac38cbd"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a773f2eeb842fea9f9e52f8360dbf7c0c54af0c904e025c9e08db5053b8718c"
 dependencies = [
  "anyhow",
  "ctor",
@@ -170,7 +171,8 @@ dependencies = [
 [[package]]
 name = "emacs-macros"
 version = "0.17.0"
-source = "git+https://github.com/ubolonton/emacs-module-rs#01e73220cf35f57bc882a145d6a8417a3ac38cbd"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69656fdfe7c2608b87164964db848b5c3795de7302e3130cce7131552c6be161"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -181,7 +183,8 @@ dependencies = [
 [[package]]
 name = "emacs_module"
 version = "0.18.0"
-source = "git+https://github.com/ubolonton/emacs-module-rs#01e73220cf35f57bc882a145d6a8417a3ac38cbd"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3067bc974045ed2c6db333bd4fc30d3bdaafa6421a9a889fa7b2826b6f7f2fa"
 
 [[package]]
 name = "encoding_rs"
@@ -464,12 +467,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lazy_static"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
-
-[[package]]
 name = "libc"
 version = "0.2.155"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -531,11 +528,10 @@ dependencies = [
 
 [[package]]
 name = "native-tls"
-version = "0.2.11"
+version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07226173c32f2926027b63cce4bcd8076c3552846cbe7925f3aaffeac0a3b92e"
+checksum = "a8614eb2c83d59d1c8cc974dd3f920198647674a0a035e1af1fa58707e317466"
 dependencies = [
- "lazy_static",
  "libc",
  "log",
  "openssl",

@@ -16,7 +16,15 @@
 
       # NOTE: we shouldn't have to manually add libiconv, but this gets around
       # an issue with building cargo on darwin
-      nativeBuildInputs = with pkgs; [llvmPackages_16.libclang llvmPackages_16.clangUseLLVM emacs libiconv pkg-config openssl];
+      nativeBuildInputs = with pkgs; [
+        llvmPackages_16.libclang
+        llvmPackages_16.clangUseLLVM
+        emacs
+        libiconv
+        pkg-config
+        openssl
+        darwin.apple_sdk.frameworks.SystemConfiguration
+      ];
 
       libclangPath = "${pkgs.llvmPackages_16.libclang.lib}/lib";
       bindgenExtraClangArgs = with pkgs;

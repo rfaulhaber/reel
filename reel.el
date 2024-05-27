@@ -85,9 +85,7 @@ BODY is the string representation of the request body.
 
 `reel' is asynchronous, and will not block under any circumstance. This function
 also does not accept callbacks. In order to block this request, wrap the call in
-`reel-await'.
-
-"
+`reel-await'."
   (if (reel-request-p url-or-request)
       (with-slots (url method headers body) url-or-request
         (reel-dyn-execute-request url (symbol-name method) headers body))
