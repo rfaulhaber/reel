@@ -1,5 +1,7 @@
 use emacs::{Env, FromLisp, IntoLisp, Result as EmacsResult, Value};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
+use std::str::FromStr;
 use std::sync::OnceLock;
 use std::{cell::OnceCell, collections::HashMap};
 
@@ -51,10 +53,6 @@ fn execute_request(env: &Env, request: ReelRequest) -> EmacsResult<emacs::Value<
     todo!();
 }
 
-fn alist_to_hashmap<K, V>(value: emacs::Value<'_>) -> EmacsResult<HashMap<K, V>> {
-    let length = value.env.call("length", [value])?.into_rust::<usize>();
-}
-
 struct ListIterator<'e> {
     value: emacs::Value<'e>,
     index: usize,
@@ -84,4 +82,25 @@ impl<'e> Iterator for ListIterator<'e> {
 
         self.value.env.call("nth", (self.index, self.value)).ok()
     }
+}
+
+fn get_headers_from_alist(alist: Value<'_>) -> EmacsResult<HeaderMap> {
+    if !alist.env.call("listp", [alist])?.is_not_nil() {
+        return Err(emacs::Error::msg("Headers must be an alist"));
+    }
+
+    let mut list_iter = ListIterator::new(alist)?;
+
+    let mut header_map = HeaderMap::new();
+
+    list_iter.try_for_each(|val| {
+        let header: String = val.car::<Value>()?.into_rust()?;
+        let value: String = val.cdr::<Value>()?.into_rust()?;
+
+        header_map.insert(HeaderName::from_str(&header)?, value.parse()?);
+
+        Ok(())
+    });
+
+    Ok(header_map)
 }
