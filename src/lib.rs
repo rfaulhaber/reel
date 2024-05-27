@@ -23,7 +23,9 @@ impl<'e> FromLisp<'e> for ReelRequest {
         println!("converting value");
         let env = value.env;
         let url = env.call("nth", (0, value))?.into_rust::<String>()?;
+        println!("url {}", url);
         let method = env.call("nth", (1, value))?.into_rust::<String>()?;
+        println!("method {}", method);
         let headers_value: emacs::Value = env.call("nth", (2, value))?;
         let headers = get_headers_from_alist(headers_value)?;
         let body = env.call("nth", (3, value))?.into_rust::<String>()?;
@@ -65,14 +67,20 @@ impl<'e> IntoLisp<'e> for ReelResponse {
 }
 
 #[emacs::module(name = "reel-dyn")]
-fn init(_env: &Env) -> EmacsResult<()> {
+fn init(env: &Env) -> EmacsResult<()> {
     // TODO initialize runtime
-    println!("initializing");
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()?;
+    env.message("initializing")?;
+
+    if TOKIO_RUNTIME.get().is_none() {
+        TOKIO_RUNTIME.set(
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()?,
+        );
+    }
+
     println!("runtime built");
-    TOKIO_RUNTIME.set(runtime);
+
     Ok(())
 }
 
@@ -90,6 +98,7 @@ fn execute_request(_env: &Env, request: ReelRequest) -> EmacsResult<ReelResponse
     todo!();
 }
 
+#[derive(Debug)]
 struct ListIterator<'e> {
     value: emacs::Value<'e>,
     index: usize,
@@ -111,32 +120,59 @@ impl<'e> Iterator for ListIterator<'e> {
     type Item = Value<'e>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index > self.length {
+        if self.index > (self.length - 1) {
             return None;
         }
 
+        let result = self.value.env.call("nth", (self.index, self.value)).ok();
+
         self.index = self.index + 1;
 
-        self.value.env.call("nth", (self.index, self.value)).ok()
+        result
     }
 }
 
 fn get_headers_from_alist(alist: Value<'_>) -> EmacsResult<HeaderMap> {
+    alist.env.call("message", ("alist: %s", alist))?;
     if !alist.env.call("listp", [alist])?.is_not_nil() {
         return Err(emacs::Error::msg("Headers must be an alist"));
     }
 
     let list_iter = ListIterator::new(alist)?;
 
+    println!("list_iter {:?}", list_iter);
+
     let mut header_map = HeaderMap::new();
 
     for val in list_iter {
-        println!("value: {:?}", val);
-        let header: String = val.car::<Value>()?.into_rust()?;
-        let value: String = val.cdr::<Value>()?.into_rust()?;
+        val.env.call("message", ("val: %s", val))?;
+        if val.env.call("listp", [val])?.is_not_nil() {
+            let header = get_symbol_or_string_as_string(val.car()?)?;
+            let value = get_symbol_or_string_as_string(val.cdr()?)?;
 
-        header_map.insert(HeaderName::from_bytes(header.as_bytes())?, value.parse()?);
+            println!("header, value {} {}", header, value);
+
+            header_map.insert(HeaderName::from_bytes(header.as_bytes())?, value.parse()?);
+        } else {
+            return Err(emacs::Error::msg("Header pair must be cons cell"));
+        }
     }
 
     Ok(header_map)
+}
+
+fn get_symbol_or_string_as_string(value: emacs::Value<'_>) -> EmacsResult<String> {
+    println!("get symbol or string");
+    if value.env.call("stringp", [value])?.is_not_nil() {
+        Ok(value.into_rust()?)
+    } else if value.env.call("symbolp", [value])?.is_not_nil() {
+        value
+            .env
+            .call("symbol-name", [value])
+            .and_then(|v| v.into_rust::<String>())
+    } else {
+        return Err(emacs::Error::msg(
+            "Could not convert string or symbol to String",
+        ));
+    }
 }

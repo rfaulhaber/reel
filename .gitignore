@@ -3,3 +3,5 @@
 .direnv
 .eask
 result
+
+.DS_Store
