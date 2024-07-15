@@ -11,20 +11,28 @@
     flake-utils,
   }:
     flake-utils.lib.eachDefaultSystem (system: let
-      pkgs = nixpkgs.legacyPackages.${system};
+      pkgs = import nixpkgs {
+        inherit system;
+      };
+
       projectName = "reel";
 
       # NOTE: we shouldn't have to manually add libiconv, but this gets around
       # an issue with building cargo on darwin
-      nativeBuildInputs = with pkgs; [
-        llvmPackages_16.libclang
-        llvmPackages_16.clangUseLLVM
-        emacs
-        libiconv
-        pkg-config
-        openssl
-        darwin.apple_sdk.frameworks.SystemConfiguration
-      ];
+      nativeBuildInputs = with pkgs;
+        [
+          llvmPackages_16.libclang
+          llvmPackages_16.clangUseLLVM
+          emacs
+          libiconv
+          pkg-config
+          openssl
+        ]
+        ++ (
+          if pkgs.lib.hasSuffix "darwin" system
+          then with pkgs; [darwin.apple_sdk.frameworks.SystemConfiguration]
+          else []
+        );
 
       libclangPath = "${pkgs.llvmPackages_16.libclang.lib}/lib";
       bindgenExtraClangArgs = with pkgs;
@@ -39,12 +47,12 @@
         ];
     in rec {
       packages.${projectName} = pkgs.rustPlatform.buildRustPackage {
+        inherit nativeBuildInputs;
+
         pname = projectName;
         version = "0.1.0";
         src = ./.;
         cargoLock.lockFile = ./Cargo.lock;
-
-        nativeBuildInputs = nativeBuildInputs;
 
         LIBCLANG_PATH = libclangPath;
         BINDGEN_EXTRA_CLANG_ARGS = bindgenExtraClangArgs;
@@ -56,6 +64,8 @@
         flake-utils.lib.mkApp {drv = packages.${projectName};};
 
       apps.default = self.apps.${system}.${projectName};
+
+      formatter = pkgs.alejandra;
 
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [

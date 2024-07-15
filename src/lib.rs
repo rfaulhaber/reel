@@ -1,7 +1,7 @@
 use emacs::{Env, FromLisp, IntoLisp, Result as EmacsResult, Value};
 use reqwest::header::{HeaderMap, HeaderName};
 
-use std::cell::OnceCell;
+use std::{cell::OnceCell, collections::HashMap, future::IntoFuture};
 
 use tokio::runtime::Runtime;
 
@@ -57,7 +57,7 @@ impl Into<reqwest::Request> for ReelRequest {
 pub struct ReelResponse {
     pub body: String,
     pub headers: Vec<(String, String)>,
-    pub status_code: u8,
+    pub status_code: u16,
 }
 
 impl<'e> IntoLisp<'e> for ReelResponse {
@@ -72,7 +72,7 @@ fn init(env: &Env) -> EmacsResult<()> {
     env.message("initializing")?;
 
     if TOKIO_RUNTIME.get().is_none() {
-        TOKIO_RUNTIME.set(
+        let _ = TOKIO_RUNTIME.set(
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()?,
@@ -84,18 +84,61 @@ fn init(env: &Env) -> EmacsResult<()> {
     Ok(())
 }
 
+#[emacs::defun(user_ptr)]
+fn make_header_map() -> EmacsResult<HashMap<String, String>> {
+    Ok(HashMap::new())
+}
+
+#[emacs::defun]
+fn insert_header_map(map: &mut HashMap<String, String>, key: String, value: String) -> EmacsResult<Option<String>> {
+    Ok(map.insert(key, value))
+}
+
+#[emacs::defun(user_ptr)]
+fn make_request(url: String, method: String, headers: &HashMap<String, String>, body: String) -> EmacsResult<ReelRequest> {
+    let mut header_map = HeaderMap::new();
+
+    for (key, value) in headers {
+        header_map.insert(HeaderName::from_bytes(key.as_bytes())?, value.parse()?);
+    }
+
+    Ok(ReelRequest {
+            url: reqwest::Url::parse(url.as_str())?,
+            method: reqwest::Method::from_bytes(method.as_bytes())?,
+            headers: header_map,
+            body: reqwest::Body::from(body),
+    })
+
+}
+
 #[emacs::defun]
 fn execute_request(_env: &Env, request: ReelRequest) -> EmacsResult<ReelResponse> {
     let client = reqwest::Client::new();
 
     println!("executing request");
 
-    TOKIO_RUNTIME
-        .get()
-        .unwrap()
-        .spawn_blocking(move || client.execute(request.into()));
+    let response = TOKIO_RUNTIME.get().unwrap()
+        .block_on(async {
+            client.execute(request.into()).await
+        })?;
 
-    todo!();
+    let headers: Vec<(String,String)> = response.headers().clone().iter().map(|(key, value)| {
+        (key.to_string(), String::from(value.to_str().unwrap())) // TODO remove unwrap
+    }).collect();
+
+    let status_code = response.status().as_u16();
+
+    let body =
+        TOKIO_RUNTIME.get().unwrap()
+        .block_on(async {
+            response.text().await
+        })?;
+
+    Ok(ReelResponse {
+        body,
+        headers,
+        status_code,
+    })
 }
 
 #[derive(Debug)]
@@ -120,7 +163,7 @@ impl<'e> Iterator for ListIterator<'e> {
     type Item = Value<'e>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.index > (self.length - 1) {
+        if self.length == 0 || self.index > (self.length - 1) {
             return None;
         }
 
