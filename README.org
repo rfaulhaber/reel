@@ -1,5 +1,7 @@
 #+title: reel
 
+*THIS IS STILL A WORK IN PROGRESS*
+
 Rust-based HTTP implementation for Emacs.
 
 Reel strives to be _non-interactive_ HTTP library for Emacs.
@@ -9,54 +11,22 @@ Emacs's built-in url.el library is insufficient for a lot of uses and arcane to
 use, and other popular libraries either depend on url.el or external libraries.
 
 My goal is to implement an HTTP library in Emacs and do it right.
-* Features
+* Goals
 - Basic asynchronous HTTP requests
 - REST clients
 - REST server
 * Examples
 Reel's API is roughly based off of [[https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API][JavaScript's fetch API]].
 
-By default, all Reel requests are async. You can wait for them by using
-~reel-await~. Reel does not use callbacks.
-
 #+begin_src emacs-lisp :eval never
 ;; GETs "https://example.com" asynchronously
 (reel "https://example.com")
-
-;; blocks
-(reel-await
- (reel "https://example.com"))
 #+end_src
 
-The ~reel~ function allows you to specify a number of options.
-
 #+begin_src emacs-lisp :eval never
-
+;; makes a POST request with headers
 (reel "https://example.com"
-      :method 'POST
-      :headers '((Content-Type . "application/json"))
-      :mode 'cors
-      :cache 'no-cache
-      :credentials 'same-origin
-      :redirect 'follow
-      :referrer-policy 'no-referrer
-      :body (json-encode '((foo . bar)))
-      )
-#+end_src
-
-The ~reel~ function is a little bit of syntactic sugar for a ~reel-request~.
-
-Use ~reel-server~ to initiate an HTTP server.
-
-#+begin_src emacs-lisp :eval never
-
-(let ((endpoint (reel-endpoint
-                 :methods '(POST)
-                 :path "/foo"
-                 :handler (lambda (req)
-                            (format "hello %s" (alist-get 'name (json-read (reel-request-body req))))))))
-
-  (reel-server
-   :port 8080
-   :endpoints '(endpoint)))
+      :method "POST"
+      :headers '(("Content-Type" . "application/json"))
+      :body (json-serialize '(:id 123)))
 #+end_src
