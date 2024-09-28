@@ -59,6 +59,12 @@
   (headers nil :read-only t)
   (body nil :read-only t))
 
+(cl-defstruct (reel-client
+               (:constructor reel--make-client)
+               (:copier nil))
+  "A reusable reel client."
+  (ptr nil :read-only t))
+
 ;; TODO create FormData
 
 ;;;###autoload
@@ -88,6 +94,16 @@ BODY is the string representation of the request body.
                                                              method)
                                      (reel--make-header-map headers) body)))))
 
+(defun reel-make-client ()
+  "Returns an instance of a reel client."
+  (reel--make-client
+   :ptr (reel-dyn-make-client)))
+
+(cl-defun reel-make-client-request (client &key url method headers body)
+  "Makes a request using a reel CLIENT."
+  (reel--build-response
+   (reel-dyn-make-client-request (reel-client-ptr client) url method (reel--make-header-map headers) body)))
+
 (defun reel--make-header-map (headers)
   "Given an alist of HEADERS, converts them into a header map."
   (let ((header-map (reel-dyn-make-header-map)))
@@ -106,7 +122,6 @@ BODY is the string representation of the request body.
 (defun reel--get-headers (headers)
   "Pulls header keys and values out of HEADERS and into an alist."
   (let ((keys (reel-dyn-get-header-keys headers)))
-    (message "keys %s" keys)
     (mapcar (lambda (key)
               (cons key (reel-dyn-get-header headers key)))
             keys)))
