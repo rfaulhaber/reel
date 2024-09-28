@@ -1,221 +1,128 @@
-use emacs::{Env, FromLisp, IntoLisp, Result as EmacsResult, Value};
-use reqwest::header::{HeaderMap, HeaderName};
+use emacs::{Env, IntoLisp, Result as EmacsResult};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
-use std::{cell::OnceCell, collections::HashMap, future::IntoFuture};
-
-use tokio::runtime::Runtime;
-
-const TOKIO_RUNTIME: OnceCell<Runtime> = OnceCell::new();
+use tokio::runtime;
 
 emacs::plugin_is_GPL_compatible!();
-
-/// Intermediate value, converted into a `reqwest::Request`.
-#[derive(Debug)]
-pub struct ReelRequest {
-    pub url: reqwest::Url,
-    pub method: reqwest::Method,
-    pub headers: reqwest::header::HeaderMap,
-    pub body: reqwest::Body,
-}
-
-impl<'e> FromLisp<'e> for ReelRequest {
-    fn from_lisp(value: emacs::Value<'e>) -> EmacsResult<Self> {
-        println!("converting value");
-        let env = value.env;
-        let url = env.call("nth", (0, value))?.into_rust::<String>()?;
-        println!("url {}", url);
-        let method = env.call("nth", (1, value))?.into_rust::<String>()?;
-        println!("method {}", method);
-        let headers_value: emacs::Value = env.call("nth", (2, value))?;
-        let headers = get_headers_from_alist(headers_value)?;
-        let body = env.call("nth", (3, value))?.into_rust::<String>()?;
-
-        Ok(ReelRequest {
-            url: reqwest::Url::parse(url.as_str())?,
-            method: reqwest::Method::from_bytes(method.as_bytes())?,
-            headers,
-            body: reqwest::Body::from(body),
-        })
-    }
-}
-
-impl Into<reqwest::Request> for ReelRequest {
-    fn into(self) -> reqwest::Request {
-        let mut request = reqwest::Request::new(self.method, self.url);
-
-        for (key, value) in self.headers {
-            if let Some(k) = key {
-                request.headers_mut().insert(k, value);
-            }
-        }
-
-        request
-    }
-}
 
 #[derive(Debug)]
 pub struct ReelResponse {
     pub body: String,
-    pub headers: Vec<(String, String)>,
+    pub headers: HeaderMap,
     pub status_code: u16,
 }
 
-impl<'e> IntoLisp<'e> for ReelResponse {
-    fn into_lisp(self, _env: &'e Env) -> EmacsResult<Value<'e>> {
-        todo!()
-    }
+#[derive(Debug)]
+pub struct ReelClient {
+    client: reqwest::Client,
+    runtime: runtime::Runtime,
 }
 
 #[emacs::module(name = "reel-dyn")]
-fn init(env: &Env) -> EmacsResult<()> {
-    // TODO initialize runtime
-    env.message("initializing")?;
-
-    if TOKIO_RUNTIME.get().is_none() {
-        let _ = TOKIO_RUNTIME.set(
-            tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .build()?,
-        );
-    }
-
-    println!("runtime built");
-
+fn init(_env: &Env) -> EmacsResult<()> {
     Ok(())
 }
 
 #[emacs::defun(user_ptr)]
-fn make_header_map() -> EmacsResult<HashMap<String, String>> {
-    Ok(HashMap::new())
-}
-
-#[emacs::defun]
-fn insert_header_map(map: &mut HashMap<String, String>, key: String, value: String) -> EmacsResult<Option<String>> {
-    Ok(map.insert(key, value))
+fn make_client() -> EmacsResult<ReelClient> {
+    Ok(ReelClient {
+        client: reqwest::Client::new(),
+        runtime: runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap(),
+    })
 }
 
 #[emacs::defun(user_ptr)]
-fn make_request(url: String, method: String, headers: &HashMap<String, String>, body: String) -> EmacsResult<ReelRequest> {
-    let mut header_map = HeaderMap::new();
-
-    for (key, value) in headers {
-        header_map.insert(HeaderName::from_bytes(key.as_bytes())?, value.parse()?);
-    }
-
-    Ok(ReelRequest {
-            url: reqwest::Url::parse(url.as_str())?,
-            method: reqwest::Method::from_bytes(method.as_bytes())?,
-            headers: header_map,
-            body: reqwest::Body::from(body),
-    })
-
+fn make_header_map() -> EmacsResult<HeaderMap> {
+    Ok(HeaderMap::new())
 }
 
 #[emacs::defun]
-fn execute_request(_env: &Env, request: ReelRequest) -> EmacsResult<ReelResponse> {
-    let client = reqwest::Client::new();
+fn insert_header(map: &mut HeaderMap, key: String, value: String) -> EmacsResult<Option<String>> {
+    let res = map.insert(
+        HeaderName::from_bytes(key.as_bytes())?,
+        HeaderValue::from_bytes(value.as_bytes())?,
+    );
 
-    println!("executing request");
+    match res {
+        Some(v) => Ok(Some(v.to_str()?.to_string())),
+        None => Ok(None),
+    }
+}
 
-    let response = TOKIO_RUNTIME.get().unwrap()
-        .block_on(async {
-            client.execute(request.into()).await
-        })?;
+#[emacs::defun]
+fn get_header(map: &HeaderMap, key: String) -> EmacsResult<Option<String>> {
+    let value = map.get(HeaderName::from_bytes(key.as_bytes())?);
 
-    let headers: Vec<(String,String)> = response.headers().clone().iter().map(|(key, value)| {
-        (key.to_string(), String::from(value.to_str().unwrap())) // TODO remove unwrap
-    }).collect();
+    match value {
+        Some(v) => Ok(Some(v.to_str()?.to_string())),
+        None => Ok(None),
+    }
+}
 
-    let status_code = response.status().as_u16();
+#[emacs::defun]
+fn get_header_keys<'e, 'h>(env: &'e Env, map: &'h HeaderMap) -> EmacsResult<emacs::Value<'e>> {
+    let mut keys = Vec::new();
 
-    let body =
-        TOKIO_RUNTIME.get().unwrap()
-        .block_on(async {
-            response.text().await
-        })?;
+    for key in map.keys() {
+        keys.push(key.as_str().into_lisp(env)?)
+    }
+
+    env.call("list", &keys)
+}
+
+#[emacs::defun]
+fn get_response_status(response: &ReelResponse) -> EmacsResult<u16> {
+    Ok(response.status_code)
+}
+
+#[emacs::defun]
+fn get_response_body(response: &ReelResponse) -> EmacsResult<String> {
+    Ok(response.body.clone())
+}
+
+#[emacs::defun(user_ptr)]
+fn get_response_headers(response: &ReelResponse) -> EmacsResult<HeaderMap> {
+    Ok(response.headers.clone())
+}
+
+#[emacs::defun(user_ptr)]
+fn make_client_request(
+    reel_client: &ReelClient,
+    url: String,
+    method: String,
+    headers: &HeaderMap,
+    body: Option<String>,
+) -> EmacsResult<ReelResponse> {
+    let request = reel_client
+        .client
+        .request(reqwest::Method::from_bytes(method.as_bytes())?, url)
+        .headers(headers.clone());
+
+    let response = reel_client.runtime.block_on(async {
+        // is there a less dumb way to do this
+        if body.is_some() {
+            request.body(body.unwrap()).send().await
+        } else {
+            request.send().await
+        }
+    })?;
+
+    let status_code = response.status();
+    let headers = response.headers().clone();
+
+    let body = reel_client
+        .runtime
+        .block_on(async { response.text().await })?;
 
     Ok(ReelResponse {
-        body,
+        status_code: status_code.into(),
         headers,
-        status_code,
+        body,
     })
 }
 
-#[derive(Debug)]
-struct ListIterator<'e> {
-    value: emacs::Value<'e>,
-    index: usize,
-    length: usize,
-}
-
-impl<'e> ListIterator<'e> {
-    pub fn new(value: emacs::Value<'e>) -> EmacsResult<Self> {
-        let length: usize = value.env.call("length", [value])?.into_rust()?;
-        Ok(Self {
-            value,
-            length,
-            index: 0,
-        })
-    }
-}
-
-impl<'e> Iterator for ListIterator<'e> {
-    type Item = Value<'e>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.length == 0 || self.index > (self.length - 1) {
-            return None;
-        }
-
-        let result = self.value.env.call("nth", (self.index, self.value)).ok();
-
-        self.index = self.index + 1;
-
-        result
-    }
-}
-
-fn get_headers_from_alist(alist: Value<'_>) -> EmacsResult<HeaderMap> {
-    alist.env.call("message", ("alist: %s", alist))?;
-    if !alist.env.call("listp", [alist])?.is_not_nil() {
-        return Err(emacs::Error::msg("Headers must be an alist"));
-    }
-
-    let list_iter = ListIterator::new(alist)?;
-
-    println!("list_iter {:?}", list_iter);
-
-    let mut header_map = HeaderMap::new();
-
-    for val in list_iter {
-        val.env.call("message", ("val: %s", val))?;
-        if val.env.call("listp", [val])?.is_not_nil() {
-            let header = get_symbol_or_string_as_string(val.car()?)?;
-            let value = get_symbol_or_string_as_string(val.cdr()?)?;
-
-            println!("header, value {} {}", header, value);
-
-            header_map.insert(HeaderName::from_bytes(header.as_bytes())?, value.parse()?);
-        } else {
-            return Err(emacs::Error::msg("Header pair must be cons cell"));
-        }
-    }
-
-    Ok(header_map)
-}
-
-fn get_symbol_or_string_as_string(value: emacs::Value<'_>) -> EmacsResult<String> {
-    println!("get symbol or string");
-    if value.env.call("stringp", [value])?.is_not_nil() {
-        Ok(value.into_rust()?)
-    } else if value.env.call("symbolp", [value])?.is_not_nil() {
-        value
-            .env
-            .call("symbol-name", [value])
-            .and_then(|v| v.into_rust::<String>())
-    } else {
-        return Err(emacs::Error::msg(
-            "Could not convert string or symbol to String",
-        ));
-    }
-}
+// #[emacs::defun(user_ptr)]
+// fn get_response_status

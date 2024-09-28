@@ -20,6 +20,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'eieio)
 
 (unless (functionp 'module-load)
   (error "Dynamic module feature not available, please compile Emacs --with-modules option turned on"))
@@ -45,13 +46,9 @@
                (:constructor reel-make-request)
                (:copier nil))
   "An HTTP request."
+  (url nil :read-only t)
   (method nil :read-only t)
   (headers nil :read-only t)
-  (mode nil :read-only t)
-  (cache nil :read-only t)
-  (credentials nil :read-only t)
-  (redirect nil :read-only t)
-  (referrer-policy nil :read-only t)
   (body nil :read-only t))
 
 (cl-defstruct (reel-response
@@ -62,52 +59,57 @@
   (headers nil :read-only t)
   (body nil :read-only t))
 
-(cl-defstruct (reel-client
-               (:constructor reel--make-client)
-               (:copier nil))
-  "Client object for making multiple requests."
-  user-agent use-cookies default-headers timeout connect-timeout proxy --internal-ref)
-
 ;; TODO create FormData
 
 ;;;###autoload
-(cl-defun reel (url-or-request &key method headers body mode credentials cache redirect referrer-policy integrity keepalive)
-  "Make an HTTP request with URL.
+(cl-defun reel (url-or-request &key method headers body)
+  "Make an HTTP request with URL-OR-REQUEST.
 The key arguments will adjust the behavior of the request.
+
+URL-OR-REQUEST can be either a string URL or an instance of a reel-request.
 
 METHOD is a string and one of: GET HEAD POST PUT DELETE CONNECT OPTIONS TRACE
 PATCH
 
-HEADERS is an alist of header/value pairs. E.g. `\'((Content-Type .
-application/json))'. Keys and values are treated as strings.
+HEADERS is an alist of header/value pairs. E.g. `\'((\"Content-Type\" .
+\"application/json\"))'. Keys and values must be strings.
 
 BODY is the string representation of the request body.
 
-`reel' is asynchronous, and will not block under any circumstance. This function
-also does not accept callbacks. In order to block this request, wrap the call in
-`reel-await'."
-  (if (reel-request-p url-or-request)
-      (with-slots (url method headers body) url-or-request
-        (reel-dyn-execute-request url (symbol-name method) headers body))
-    (reel-dyn-execute-request url-or-request (if (null method)
-                                                 "GET"
-                                               (symbol-name method))
-                              headers body)))
+`reel' is synchronous."
+  (let ((client (reel-dyn-make-client)))
+    (if (reel-request-p url-or-request)
+        (with-slots (url method headers body) url-or-request
+          (reel--build-response
+           (reel-dyn-make-client-request client url method (reel--make-header-map headers) body)))
+      (reel--build-response
+       (reel-dyn-make-client-request client url-or-request (if (null method)
+                                                               "GET"
+                                                             method)
+                                     (reel--make-header-map headers) body)))))
 
-(cl-defun reel-make-client (&key user-agent use-cookies default-headers timeout connect-timeout proxy &allow-other-keys)
-  )
+(defun reel--make-header-map (headers)
+  "Given an alist of HEADERS, converts them into a header map."
+  (let ((header-map (reel-dyn-make-header-map)))
+    (mapc (lambda (header)
+            (reel-dyn-insert-header header-map (car header) (cdr header)))
+          headers)
+    header-map))
 
-(defun reel-format-query-parameters (url query-params)
-  ;; TODO
-  )
+(defun reel--build-response (resp-pointer)
+  "Builds a reel-response struct out of RESP-POINTER."
+  (reel-make-response
+   :status (reel-dyn-get-response-status resp-pointer)
+   :headers (reel--get-headers (reel-dyn-get-response-headers resp-pointer))
+   :body (reel-dyn-get-response-body resp-pointer)))
 
-;; (reel-server
-;;  :port 8000
-;;  :endpoints '(("/foo" . (lambda (request) "hello"))))
-
-;; (cl-defun reel-server (&key port responses)
-;;   ;; TODO
-;;   )
+(defun reel--get-headers (headers)
+  "Pulls header keys and values out of HEADERS and into an alist."
+  (let ((keys (reel-dyn-get-header-keys headers)))
+    (message "keys %s" keys)
+    (mapcar (lambda (key)
+              (cons key (reel-dyn-get-header headers key)))
+            keys)))
 
 (provide 'reel)
 ;;; reel.el ends here
