@@ -42,6 +42,9 @@
 (defconst reel-http-methods '(GET HEAD POST PUT DELETE CONNECT OPTIONS TRACE PATCH)
   "Valid HTTP methods.")
 
+(defconst reel-default-user-agent (format "reel/GNU Emacs/%s %s" emacs-version system-type)
+  "Default user-agent header.")
+
 (cl-defstruct (reel-request
                (:constructor reel-make-request)
                (:copier nil))
@@ -101,8 +104,9 @@ BODY is the string representation of the request body.
 
 (cl-defun reel-make-client-request (client &key url method headers body)
   "Makes a request using a reel CLIENT."
-  (reel--build-response
-   (reel-dyn-make-client-request (reel-client-ptr client) url method (reel--make-header-map headers) body)))
+  (let ((headers (if (assoc "user-agent" headers) headers (push `("user-agent" . ,reel-default-user-agent) headers))))
+    (reel--build-response
+     (reel-dyn-make-client-request (reel-client-ptr client) url method (reel--make-header-map headers) body))))
 
 (defun reel--make-header-map (headers)
   "Given an alist of HEADERS, converts them into a header map."
