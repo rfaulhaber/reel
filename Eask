@@ -3,12 +3,22 @@
          "An HTTP client for Emacs built in Rust")
 
 (website-url "https://github.com/rfaulhaber/reel")
-(keywords )
+(keywords "lisp")
 
 (package-file "reel.el")
 
+(files
+    "*.el"
+    "libreel.dylib"
+    "libreel.so"
+    "libreel.dll"
+    "out"
+    "Cargo.toml"
+    "Cargo.lock"
+    "src")
+
 (script "test" "echo \"Error: no test specified\" && exit 1")
 
-(source "gnu")
+(source "melpa")
 
 (depends-on "emacs" "26.1")

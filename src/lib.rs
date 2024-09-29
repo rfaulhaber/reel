@@ -19,7 +19,8 @@ pub struct ReelClient {
 }
 
 #[emacs::module(name = "reel-dyn")]
-fn init(_env: &Env) -> EmacsResult<()> {
+fn init(env: &Env) -> EmacsResult<()> {
+    env.call("set", (env.intern("reel-dyn--version")?, option_env!("CARGO_PKG_VERSION")))?;
     Ok(())
 }
 
@@ -123,6 +124,3 @@ fn make_client_request(
         body,
     })
 }
-
-// #[emacs::defun(user_ptr)]
-// fn get_response_status

@@ -25,19 +25,23 @@
 (unless (functionp 'module-load)
   (error "Dynamic module feature not available, please compile Emacs --with-modules option turned on"))
 
-;; (eval-and-compile
-;;   (require 'reel-dyn))
+(eval-and-compile
+  (defvar reel-dyn--version)
+  (let* ((ext (pcase system-type
+                ('gnu/linux "so")
+                ('darwin "dylib")
+                ('windows-nt "dll")))
+         (path (format "libreel.%s" ext)))
+    ;; we load the rust output depending on the context
+    ;; if the module exists as a sibling to this file, we immediately load that
+    (if (file-exists-p (expand-file-name path))
+        (module-load (expand-file-name path))
+      ;; by default, we check the load path. this is how we get eask install to work
+      (load path))
+    (unless (or reel-dyn--version (featurep 'reel-dyn))
+      (error "Dynamic module was not loaded correctly"))))
 
-(eval-when-compile
-  (let* ((env (if (string= (getenv "REEL_ENV") "release") "release" "debug"))
-         (system (pcase system-type
-                   ('gnu/linux "so")
-                   ('darwin "dylib")
-                   ('windows-nt "dll")))
-         (path (format "./target/%s/libreel.%s" env system)))
-    (message "loading %s" path)
-    (module-load (expand-file-name path))
-    (message "feature? %s" (featurep 'reel-dyn))))
+(require 'reel-dyn)
 
 (defconst reel-http-methods '(GET HEAD POST PUT DELETE CONNECT OPTIONS TRACE PATCH)
   "Valid HTTP methods.")
