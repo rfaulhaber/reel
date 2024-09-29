@@ -2,40 +2,17 @@
   description = "reel";
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
   };
 
   outputs = {
     self,
     nixpkgs,
-    flake-utils,
-  }:
-    flake-utils.lib.eachDefaultSystem (system: let
-      pkgs = import nixpkgs {
-        inherit system;
-      };
-
-      projectName = "reel";
-
-      # NOTE: we shouldn't have to manually add libiconv, but this gets around
-      # an issue with building cargo on darwin
-      nativeBuildInputs = with pkgs;
-        [
-          llvmPackages_16.libclang
-          llvmPackages_16.clangUseLLVM
-          emacs
-          libiconv
-          pkg-config
-          openssl
-        ]
-        ++ (
-          if pkgs.lib.hasSuffix "darwin" system
-          then with pkgs; [darwin.apple_sdk.frameworks.SystemConfiguration]
-          else []
-        );
-
-      libclangPath = "${pkgs.llvmPackages_16.libclang.lib}/lib";
-      bindgenExtraClangArgs = with pkgs;
+  }: let
+    projectName = "reel";
+    version = "0.1.0";
+    mkClangPath = pkgs: "${pkgs.llvmPackages_16.libclang.lib}/lib";
+    mkBindgenExtraClangArgs = pkgs:
+      with pkgs;
         lib.concatStringsSep " " [
           (builtins.readFile "${stdenv.cc}/nix-support/libc-crt1-cflags")
           (builtins.readFile "${stdenv.cc}/nix-support/libc-cflags")
@@ -45,30 +22,63 @@
           }/include"
           "-isystem ${emacs}/include"
         ];
-    in rec {
-      packages.${projectName} = pkgs.rustPlatform.buildRustPackage {
-        inherit nativeBuildInputs;
+    mkDefaultNativeBuildInputs = pkgs:
+      with pkgs; [
+        llvmPackages_16.libclang
+        llvmPackages_16.clangUseLLVM
+        emacs
+        libiconv
+        pkg-config
+        openssl
+      ];
+  in {
+    packages = {
+      aarch64-darwin = let
+        system = "aarch64-darwin";
+        pkgs = import nixpkgs {inherit system;};
+      in {
+        ${projectName} = pkgs.rustPlatform.buildRustPackage {
+          inherit version;
 
-        pname = projectName;
-        version = "0.1.0";
-        src = ./.;
-        cargoLock.lockFile = ./Cargo.lock;
+          nativeBuildInputs =
+            (mkDefaultNativeBuildInputs pkgs)
+            ++ [
+              pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
+            ];
 
-        LIBCLANG_PATH = libclangPath;
-        BINDGEN_EXTRA_CLANG_ARGS = bindgenExtraClangArgs;
+          pname = projectName;
+          src = ./.;
+          cargoLock.lockFile = ./Cargo.lock;
+
+          LIBCLANG_PATH = mkClangPath pkgs;
+          BINDGEN_EXTRA_CLANG_ARGS = mkBindgenExtraClangArgs pkgs;
+        };
+
+        default = self.packages.aarch64-darwin.${projectName};
       };
 
-      packages.default = self.packages.${system}.${projectName};
+      x86_64-linux = let
+        system = "x86_64-linux";
+        pkgs = import nixpkgs {inherit system;};
+      in {
+        ${projectName} = pkgs.rustPlatform.buildRustPackage {
+          inherit version;
 
-      apps.${projectName} =
-        flake-utils.lib.mkApp {drv = packages.${projectName};};
+          nativeBuildInputs = mkDefaultNativeBuildInputs pkgs;
 
-      apps.default = self.apps.${system}.${projectName};
+          pname = projectName;
+          src = ./.;
+          cargoLock.lockFile = ./Cargo.lock;
 
-      formatter = pkgs.alejandra;
-
-      devShells.default = pkgs.mkShell {
-        buildInputs = with pkgs; [
+          LIBCLANG_PATH = mkClangPath pkgs;
+          BINDGEN_EXTRA_CLANG_ARGS = mkBindgenExtraClangArgs pkgs;
+        };
+        default = self.packages.x86_64-linux.${projectName};
+      };
+    };
+    devShells = let
+      mkBuildInputs = pkgs:
+        with pkgs; [
           cargo
           rustc
           rustfmt
@@ -80,11 +90,34 @@
           nodePackages_latest.nodejs
           nodePackages_latest.eask
         ];
+    in {
+      aarch64-darwin.default = let
+        pkgs = import nixpkgs {system = "aarch64-darwin";};
+      in
+        pkgs.mkShell {
+          nativeBuildInputs = self.packages.aarch64-darwin.${projectName}.nativeBuildInputs;
 
-        inherit nativeBuildInputs;
+          buildInputs = mkBuildInputs pkgs;
 
-        LIBCLANG_PATH = libclangPath;
-        BINDGEN_EXTRA_CLANG_ARGS = bindgenExtraClangArgs;
-      };
-    });
+          LIBCLANG_PATH = self.packages.aarch64-darwin.${projectName}.LIBCLANG_PATH;
+          BINDGEN_EXTRA_CLANG_ARGS = self.packages.aarch64-darwin.${projectName}.BINDGEN_EXTRA_CLANG_ARGS;
+        };
+      x86_64-linux.default = let
+        pkgs = import nixpkgs {system = "x86_64-linux";};
+      in
+        pkgs.mkShell {
+          nativeBuildInputs = self.packages.x86_64-linux.${projectName}.nativeBuildInputs;
+
+          buildInputs = mkBuildInputs pkgs;
+
+          LIBCLANG_PATH = self.packages.x86_64-linux.${projectName}.LIBCLANG_PATH;
+          BINDGEN_EXTRA_CLANG_ARGS = self.packages.x86_64-linux.${projectName}.BINDGEN_EXTRA_CLANG_ARGS;
+        };
+    };
+
+    formatter = {
+      aarch64-darwin = let pkgs = import nixpkgs {system = "aarch64-darwin";}; in pkgs.alejandra;
+      x86_64-linux = let pkgs = import nixpkgs {system = "x86_64-linux";}; in pkgs.alejandra;
+    };
+  };
 }
