@@ -35,7 +35,9 @@ jobs:
       - name: Compile module
         run: |
           cargo build --release
+          echo "Moving module"
           mv ./target/release/libreel.* .
+          pwd
       - name: Eask install
         run: |
           eask install
