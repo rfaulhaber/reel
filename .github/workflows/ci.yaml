@@ -34,10 +34,6 @@ jobs:
       - uses: emacs-eask/setup-eask@master
         with:
           version: 'snapshot'
-      - name: Set up Rust
-        run: |
-          rustup install stable
-          rustup target add ${{ matrix.target }}
       - name: Compile module
         run: |
           cargo build --release
