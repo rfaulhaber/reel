@@ -1,5 +1,6 @@
-name: test
-run-name: ${{ github.actor }} test
+name: build
+run-name: ${{ github.actor }} build
+
 on:
   push:
     branches:
@@ -9,42 +10,38 @@ on:
 
 
 jobs:
-  unit-test-rust:
-    runs-on: ${{ matrix.os }}
+  ci:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-
-    steps:
-      - uses: actions/checkout@v2
-      - name: build
-        run: cargo build
-      - name: test
-        run: cargo test
-
-
-  unit-test-emacs:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+        emacs-version:
+          - 26.3
+          - 27.2
+          - 28.2
+          - 29.1
+          - snapshot
     runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-    # Install Emacs
-    - uses: jcs090218/setup-emacs@master
-      with:
-        version: ${{ matrix.emacs-version }}
+      - uses: jcs090218/setup-emacs@master
+        with:
+          version: ${{ matrix.emacs-version }}
 
-    # Install Eask
-    - uses: emacs-eask/setup-eask@master
-      with:
-        version: 'snapshot'
-
-    - name: Run tests
-      run: |
-        eask install
-        eask compile
-        eask lint package
-        eask test buttercup
+      - uses: emacs-eask/setup-eask@master
+        with:
+          version: 'snapshot'
+      - name: Set up Rust
+        run: |
+          rustup install stable
+          rustup target add ${{ matrix.target }}
+      - name: Compile module
+        run: |
+          cargo build --release
+          mv ./target/release/libreel.* .
+      - name: Eask install
+        run: |
+          eask install
