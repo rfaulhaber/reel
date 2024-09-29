@@ -18,10 +18,8 @@ jobs:
           - windows-latest
           - macos-latest
         emacs-version:
-          - 26.3
-          - 27.2
           - 28.2
-          - 29.1
+          - 29.2
           - snapshot
     runs-on: ${{ matrix.os }}
     steps:
