@@ -710,10 +710,8 @@ dependencies = [
 name = "reel"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "emacs",
  "reqwest",
- "thiserror",
  "tokio",
 ]
 
