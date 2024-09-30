@@ -37,6 +37,7 @@ jobs:
           cargo build --release
           echo "Moving module"
           mv ./target/release/libreel.* .
+          ls
 
       - name: Eask install
         run: |
