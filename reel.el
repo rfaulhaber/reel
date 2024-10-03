@@ -72,8 +72,6 @@
   "A reusable reel client."
   (ptr nil :read-only t))
 
-;; TODO create FormData
-
 ;;;###autoload
 (cl-defun reel (url-or-request &key method headers body)
   "Make an HTTP request with URL-OR-REQUEST.
