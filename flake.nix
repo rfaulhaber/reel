@@ -37,14 +37,10 @@
           openssl
           pkg-config
         ]
-        ++ [
-          (
-            if (system == "aarch64-darwin")
-            then [
-              pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
-            ]
-            else []
-          )
+        ++ lib.optionals
+        (system == "aarch64-darwin")
+        [
+          pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
         ];
   in {
     packages = forAllSystems (
