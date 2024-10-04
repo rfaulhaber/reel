@@ -1,11 +1,11 @@
 ;;; reel.el --- Rust-based HTTP library for Emacs Lisp. -*- lexical-binding: t; -*-
 ;;
-;; Copyright (C) 2023 Ryan Faulhaber
+;; Copyright (C) 2024 Ryan Faulhaber
 ;;
 ;; Author: Ryan Faulhaber <ryf@sent.as>
 ;; Maintainer: Ryan Faulhaber <ryf@sent.as>
 ;; Created: January 25, 2023
-;; Modified: January 25, 2023
+;; Modified: October 04, 2023
 ;; Version: 0.1.0
 ;; Keywords: lisp
 ;; Homepage: https://github.com/rfaulhaber/reel
