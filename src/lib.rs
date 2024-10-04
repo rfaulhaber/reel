@@ -1,9 +1,50 @@
-use emacs::{Env, IntoLisp, Result as EmacsResult};
+use emacs::{Env, FromLisp, IntoLisp, Result as EmacsResult};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
 use tokio::runtime;
 
 emacs::plugin_is_GPL_compatible!();
+
+emacs::define_errors! {
+    request_body_type_error "Request body should either be a string or a cons cell for form data"
+}
+
+#[derive(Debug)]
+pub struct ConsCell<T, V>
+where
+    T: for<'t> FromLisp<'t>,
+    V: for<'v> FromLisp<'v>,
+{
+    car: T,
+    cdr: V,
+}
+
+impl<'e, T, V> FromLisp<'e> for ConsCell<T, V>
+where
+    T: for<'t> FromLisp<'t>,
+    V: for<'v> FromLisp<'v>,
+{
+    fn from_lisp(value: emacs::Value<'e>) -> EmacsResult<Self> {
+        let car = value.car()?;
+        let cdr = value.cdr()?;
+
+        Ok(ConsCell { car, cdr })
+    }
+}
+
+impl<T: for<'t> emacs::FromLisp<'t>, V: for<'v> emacs::FromLisp<'v>> ConsCell<T, V> {
+    pub fn car(&self) -> &T {
+        &self.car
+    }
+
+    pub fn cdr(&self) -> &V {
+        &self.cdr
+    }
+
+    pub fn into_tuple(self) -> (T, V) {
+        (self.car, self.cdr)
+    }
+}
 
 #[derive(Debug)]
 pub struct ReelResponse {
@@ -18,9 +59,54 @@ pub struct ReelClient {
     runtime: runtime::Runtime,
 }
 
+#[derive(Debug)]
+pub enum Body {
+    String(String),
+    Form(Vec<ConsCell<String, String>>),
+}
+
+impl<'e> FromLisp<'e> for Body {
+    fn from_lisp(value: emacs::Value<'e>) -> EmacsResult<Self> {
+        let list_value = value.env.call("listp", [value])?;
+
+        if list_value.is_not_nil() {
+            let mut vec = Vec::new();
+            let env = value.env;
+
+            let len = env.call("length", [value])?.into_rust::<usize>()?;
+
+            for i in 0..len {
+                let nth: ConsCell<String, String> =
+                    env.call("nth", (i, value))?.into_rust()?;
+                vec.push(nth)
+            }
+
+            return Ok(Body::Form(vec));
+        }
+
+        let str_value = value.env.call("stringp", [value])?;
+
+        if str_value.is_not_nil() {
+            return Ok(Body::String(value.into_rust::<String>()?));
+        }
+
+        let received_type = value.env.call("type-of", [value])?;
+
+        return value
+            .env
+            .signal(request_body_type_error, ("type-of", received_type));
+    }
+}
+
 #[emacs::module(name = "reel-dyn")]
 fn init(env: &Env) -> EmacsResult<()> {
-    env.call("set", (env.intern("reel-dyn--version")?, option_env!("CARGO_PKG_VERSION")))?;
+    env.call(
+        "set",
+        (
+            env.intern("reel-dyn--version")?,
+            option_env!("CARGO_PKG_VERSION"),
+        ),
+    )?;
     Ok(())
 }
 
@@ -95,7 +181,7 @@ fn make_client_request(
     url: String,
     method: String,
     headers: &HeaderMap,
-    body: Option<String>,
+    body: Option<Body>,
 ) -> EmacsResult<ReelResponse> {
     let request = reel_client
         .client
@@ -104,10 +190,17 @@ fn make_client_request(
 
     let response = reel_client.runtime.block_on(async {
         // is there a less dumb way to do this
-        if body.is_some() {
-            request.body(body.unwrap()).send().await
-        } else {
-            request.send().await
+        match body {
+            Some(Body::String(string_body)) => request.body(string_body).send().await,
+            Some(Body::Form(cells)) => {
+                let pairs: Vec<(String, String)> = cells
+                    .into_iter()
+                    .map(|cell| (cell.car().clone(), cell.cdr().clone()))
+                    .collect();
+
+                request.form(&pairs).send().await
+            }
+            None => request.send().await,
         }
     })?;
 

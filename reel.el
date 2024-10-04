@@ -85,7 +85,8 @@ PATCH
 HEADERS is an alist of header/value pairs. E.g. `\'((\"Content-Type\" .
 \"application/json\"))'. Keys and values must be strings.
 
-BODY is the string representation of the request body.
+BODY is either the string representation of the request body or an alist of
+key-value pairs for form submission.
 
 `reel' is synchronous."
   (let ((client (reel-dyn-make-client)))

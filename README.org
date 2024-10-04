@@ -12,14 +12,14 @@ use, and other popular libraries either depend on url.el or external libraries.
 
 My goal is to implement an HTTP library in Emacs and do it right.
 * Goals
-- Basic asynchronous HTTP requests
+- Basic synchronous HTTP requests
 - REST clients
 - REST server
 * Examples
 Reel's API is roughly based off of [[https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API][JavaScript's fetch API]].
 
 #+begin_src emacs-lisp :eval never
-;; GETs "https://example.com" asynchronously
+;; GETs "https://example.com" synchronously
 (reel "https://example.com")
 #+end_src
 
@@ -29,4 +29,13 @@ Reel's API is roughly based off of [[https://developer.mozilla.org/en-US/docs/We
       :method "POST"
       :headers '(("Content-Type" . "application/json"))
       :body (json-serialize '(:id 123)))
+#+end_src
+
+~:body~ can also be an alist for form submission. Will raise an error if the alist contains anything but strings:
+
+#+begin_src emacs-lisp :eval never
+(reel "https://example.com"
+      :method "POST"
+      :headers '(("Content-Type" . "application/json"))
+      :body '(("key" . "value"))
 #+end_src
