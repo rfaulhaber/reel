@@ -56,6 +56,7 @@
 
           LIBCLANG_PATH = mkClangPath pkgs;
           BINDGEN_EXTRA_CLANG_ARGS = mkBindgenExtraClangArgs pkgs;
+          PKG_CONFIG_PATH="${pkgs.openssl.dev}/lib/pkgconfig";
         };
         default = self.packages.${system}.${projectName};
       }
