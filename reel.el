@@ -46,7 +46,7 @@
 (defconst reel-http-methods '(GET HEAD POST PUT DELETE CONNECT OPTIONS TRACE PATCH)
   "Valid HTTP methods.")
 
-(defconst reel-default-user-agent (format "reel/GNU Emacs/%s %s" emacs-version system-type)
+(defconst reel-default-user-agent (format "reel (GNU Emacs %s %s)/%s" emacs-version system-type reel-dyn--version)
   "Default user-agent header.")
 
 (cl-defstruct (reel-request
@@ -92,13 +92,8 @@ key-value pairs for form submission.
   (let ((client (reel-dyn-make-client)))
     (if (reel-request-p url-or-request)
         (with-slots (url method headers body) url-or-request
-          (reel--build-response
-           (reel-dyn-make-client-request client url method (reel--make-header-map headers) body)))
-      (reel--build-response
-       (reel-dyn-make-client-request client url-or-request (if (null method)
-                                                               "GET"
-                                                             method)
-                                     (reel--make-header-map headers) body)))))
+          (reel--make-request client url method headers body))
+      (reel--make-request client url-or-request method headers body))))
 
 (defun reel-make-client ()
   "Returns an instance of a reel client."
@@ -107,9 +102,16 @@ key-value pairs for form submission.
 
 (cl-defun reel-make-client-request (client &key url method headers body)
   "Makes a request using a reel CLIENT."
-  (let ((headers (if (assoc "user-agent" headers) headers (push `("user-agent" . ,reel-default-user-agent) headers))))
+  (reel--make-request client url method headers body))
+
+(defun reel--make-request (client url method headers body)
+  "Makes a request via reel-dyn using defaults."
+  (let* ((client (if (reel-client-p client) (reel-client-ptr client) client))
+         (method (or method "GET"))
+         (default-headers (if (assoc "user-agent" headers) headers (push `("user-agent" . ,reel-default-user-agent) headers)))
+         (headers (reel--make-header-map default-headers)))
     (reel--build-response
-     (reel-dyn-make-client-request (reel-client-ptr client) url method (reel--make-header-map headers) body))))
+     (reel-dyn-make-client-request client url method headers body))))
 
 (defun reel--make-header-map (headers)
   "Given an alist of HEADERS, converts them into a header map."
