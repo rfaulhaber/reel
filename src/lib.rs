@@ -113,7 +113,7 @@ fn init(env: &Env) -> EmacsResult<()> {
 #[emacs::defun(user_ptr)]
 fn make_client() -> EmacsResult<ReelClient> {
     Ok(ReelClient {
-        client: reqwest::Client::new(),
+        client: reqwest::Client::builder().use_rustls_tls().build()?,
         runtime: runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
