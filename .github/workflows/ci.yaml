@@ -41,6 +41,6 @@ jobs:
       - name: Run tests
         run: |
           docker run -d --rm --name reel-test -p 8080:80 kennethreitz/httpbin
-          sleep 3s
+          sleep 5s
           eask test buttercup
           docker stop reel-test
