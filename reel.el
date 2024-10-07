@@ -104,6 +104,15 @@ key-value pairs for form submission.
   "Makes a request using a reel CLIENT."
   (reel--make-request client url method headers body))
 
+(defun reel-url-search-parameters (parameters)
+  "Given an alist PARAMETERS, converts the alist to a search query string."
+  (concat "?"
+          (string-join
+           (seq-map (lambda (param)
+                      (concat (car param) "=" (cdr param)))
+                    parameters)
+           "&")))
+
 (defun reel--make-request (client url method headers body)
   "Makes a request via reel-dyn using defaults."
   (let* ((client (if (reel-client-p client) (reel-client-ptr client) client))

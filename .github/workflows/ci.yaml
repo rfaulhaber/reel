@@ -34,11 +34,13 @@ jobs:
           version: 'snapshot'
       - name: Compile module
         run: |
-          cargo build --release
+          cargo build
           echo "Moving module"
           mv ./target/release/libreel.* .
-          ls
-
-      - name: Eask install
-        run: |
           eask install
+      - name: Run tests
+        run: |
+          docker run -d --rm --name reel-test -p 8080:80 kennethreitz/httpbin
+          sleep 3s
+          eask test buttercup
+          docker stop reel-test

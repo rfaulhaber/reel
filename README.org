@@ -8,9 +8,17 @@ Reel strives to be _non-interactive_ HTTP library for Emacs.
 
 * Rationale
 Emacs's built-in url.el library is insufficient for a lot of uses and arcane to
-use, and other popular libraries either depend on url.el or external libraries.
+use, and other popular libraries either depend on url.el or ~curl~.
 
-My goal is to implement an HTTP library in Emacs and do it right.
+My goal is to implement an HTTP client in Emacs that has a similar API to other programming languages. It shouldn't use buffers
+excessively and it shouldn't depend on the global environment for behavior.
+* Features
+** DONE Basic HTTP requests
+** TODO Multipart form requests with file data
+** TODO Send requests through a proxy
+** TODO Cookies and sessions
+** TODO Asynchronous requests
+** TODO Streaming
 * Goals
 - Basic synchronous HTTP requests
 - REST clients
@@ -22,6 +30,8 @@ Reel's API is roughly based off of [[https://developer.mozilla.org/en-US/docs/We
 ;; GETs "https://example.com" synchronously
 (reel "https://example.com")
 #+end_src
+
+A ~reel~ request returns a ~reel-response~ struct, with ~status~, ~headers~, and ~body~ slots.
 
 #+begin_src emacs-lisp :eval never
 ;; makes a POST request with headers
@@ -36,6 +46,5 @@ Reel's API is roughly based off of [[https://developer.mozilla.org/en-US/docs/We
 #+begin_src emacs-lisp :eval never
 (reel "https://example.com"
       :method "POST"
-      :headers '(("Content-Type" . "application/json"))
       :body '(("key" . "value"))
 #+end_src

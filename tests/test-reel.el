@@ -5,34 +5,61 @@
 (require 'buttercup)
 (require 'reel)
 
-(defconst test-endpoint "http://127.0.0.1:8080/anything")
+;; NOTE these tests expect a local instance of httpbin to be running
+;; run:
+;; docker run -it --rm --name reel-test -p 8080:80 kennethreitz/httpbin
+;; to have these tests run properly!
+
+(defconst reel-test-endpoint "http://127.0.0.1:8080/anything")
+(defconst reel-test-container-name "reel-test")
 
 (describe "reel"
-  (before-all
-    (reel-test-setup))
-
-  (after-all
-    (reel-test-teardown))
-
   (describe "reel fn"
     (it "makes basic calls with default arguments"
-      (let ((result (reel (format "%s/foo/bar" test-endpoint))))
+      (let* ((url (format "%s/foo/bar" reel-test-endpoint))
+             (result (reel url)))
         (expect result :to-be-truthy)
         (with-slots (status body) result
           (expect status :to-equal 200)
           (let ((json-body (json-parse-string body)))
-            (message "json body %s" (hash-table-keys json-body))
-            (expect (gethash "url" json-body) :to-equal (format "%s/foo/bar" test-endpoint))))))))
-
-(defun reel-test-setup ()
-  (message "starting docker")
-  (make-process
-   :name "reel test"
-   :buffer (get-buffer-create "*reel test*")
-   :command '("docker" "run" "-it" "--rm" "--name reel-test" "-p 8080:80" "kennethreitz/httpbin")))
-
-(defun reel-test-teardown()
-  (message "stopping docker")
-  (call-process "docker" nil t nil "stop" "reel-test"))
+            (expect (gethash "url" json-body) :to-equal url)
+            (expect (gethash "method" json-body) :to-equal "GET")))))
+    (it "makes basic POST calls"
+      (let* ((url (concat reel-test-endpoint "/resource"))
+             (result
+              (reel url
+                    :method "POST"
+                    :body "hello world")))
+        (expect result :to-be-truthy)
+        (with-slots (status body) result
+          (expect status :to-equal 200)
+          (let ((json-body (json-parse-string body)))
+            (expect (gethash "data" json-body) :to-equal "hello world")
+            (expect (gethash "method" json-body) :to-equal "POST")))))
+    (it "makes basic calls with headers"
+      (let* ((url (concat reel-test-endpoint "/resource"))
+             (result
+              (reel url
+                    :headers '(("header-1" . "value")))))
+        (expect result :to-be-truthy)
+        (with-slots (status body) result
+          (expect status :to-equal 200)
+          (let ((json-body (json-parse-string body)))
+            (expect (gethash "method" json-body) :to-equal "GET")
+            (let ((headers (gethash "headers" json-body)))
+              (expect (gethash "Header-1" headers) :to-equal "value"))))))
+    (it "makes basic calls with form data"
+      (let* ((url (concat reel-test-endpoint "/resource"))
+             (result
+              (reel url
+                    :method "POST"
+                    :body '(("field-1" . "value")))))
+        (expect result :to-be-truthy)
+        (with-slots (status body) result
+          (expect status :to-equal 200)
+          (let ((json-body (json-parse-string body)))
+            (expect (gethash "method" json-body) :to-equal "POST")
+            (let ((form (gethash "form" json-body)))
+              (expect (gethash "field-1" form) :to-equal "value"))))))))
 
 ;;; test-reel.el ends here
