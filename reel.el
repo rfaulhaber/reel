@@ -9,7 +9,7 @@
 ;; Version: 0.1.0
 ;; Keywords: lisp
 ;; Homepage: https://github.com/rfaulhaber/reel
-;; Package-Requires: ((emacs "25.2"))
+;; Package-Requires: ((emacs "27.1"))
 ;;
 ;; This file is not part of GNU Emacs.
 ;;
@@ -72,6 +72,9 @@
   "A reusable reel client."
   (ptr nil :read-only t))
 
+(define-error 'reel-invalid-body-type "the :body keyword of a reel request must be a string or an alist")
+(define-error 'reel-invalid-method "invalid HTTP method passed to :method")
+
 ;;;###autoload
 (cl-defun reel (url-or-request &key method headers body)
   "Make an HTTP request with URL-OR-REQUEST.
@@ -106,15 +109,40 @@ key-value pairs for form submission.
 
 (defun reel-url-search-parameters (parameters)
   "Given an alist PARAMETERS, converts the alist to a search query string."
-  (concat "?"
-          (string-join
-           (seq-map (lambda (param)
-                      (concat (car param) "=" (cdr param)))
-                    parameters)
-           "&")))
+  (when (not (proper-list-p parameters))
+    (user-error "PARAMETERS must be a proper alist"))
+
+  (if (null parameters)
+      ""
+    (concat "?"
+            (string-join
+             (seq-map (lambda (param)
+                        (concat (car param) "=" (cdr param)))
+                      parameters)
+             "&"))))
+
+(defun reel-valid-body-p (body)
+  "Returns non-nil if BODY is valid for the `reel' function :body keyword."
+  (or (stringp body)
+      (proper-list-p body)))
+
+(defun reel-valid-method-p (method)
+  "Returns non-nil if METHOD is a valid HTTP method."
+  (let ((canonical-method (if (stringp method)
+                              (intern (upcase method))
+                            method)))
+    (member canonical-method reel-http-methods)))
 
 (defun reel--make-request (client url method headers body)
   "Makes a request via reel-dyn using defaults."
+  (when (and (not (null body))
+             (not (reel-valid-body-p body)))
+    (signal 'reel-invalid-body-type `(reel-valid-body-p ,(type-of body))))
+
+  (when (and (not (null method))
+             (not (reel-valid-method-p method)))
+    (signal 'reel-invalid-method `(reel-valid-method-p ,method)))
+
   (let* ((client (if (reel-client-p client) (reel-client-ptr client) client))
          (method (or method "GET"))
          (default-headers (if (assoc "user-agent" headers) headers (push `("user-agent" . ,reel-default-user-agent) headers)))

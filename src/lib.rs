@@ -5,10 +5,6 @@ use tokio::runtime;
 
 emacs::plugin_is_GPL_compatible!();
 
-emacs::define_errors! {
-    request_body_type_error "Request body should either be a string or a cons cell for form data"
-}
-
 #[derive(Debug)]
 pub struct ConsCell<T, V>
 where
@@ -32,7 +28,11 @@ where
     }
 }
 
-impl<T: for<'t> emacs::FromLisp<'t>, V: for<'v> emacs::FromLisp<'v>> ConsCell<T, V> {
+impl<T, V> ConsCell<T, V>
+where
+    T: for<'t> emacs::FromLisp<'t>,
+    V: for<'v> emacs::FromLisp<'v>,
+{
     pub fn car(&self) -> &T {
         &self.car
     }
@@ -43,6 +43,16 @@ impl<T: for<'t> emacs::FromLisp<'t>, V: for<'v> emacs::FromLisp<'v>> ConsCell<T,
 
     pub fn into_tuple(self) -> (T, V) {
         (self.car, self.cdr)
+    }
+}
+
+impl<'e, T, V> From<ConsCell<T, V>> for (T, V)
+where
+    T: for<'t> emacs::FromLisp<'t>,
+    V: for<'v> emacs::FromLisp<'v>,
+{
+    fn from(val: ConsCell<T, V>) -> Self {
+        (val.car, val.cdr)
     }
 }
 
@@ -67,7 +77,7 @@ pub enum Body {
 
 impl<'e> FromLisp<'e> for Body {
     fn from_lisp(value: emacs::Value<'e>) -> EmacsResult<Self> {
-        let list_value = value.env.call("listp", [value])?;
+        let list_value = value.env.call("proper-list-p", [value])?;
 
         if list_value.is_not_nil() {
             let mut vec = Vec::new();
@@ -76,8 +86,7 @@ impl<'e> FromLisp<'e> for Body {
             let len = env.call("length", [value])?.into_rust::<usize>()?;
 
             for i in 0..len {
-                let nth: ConsCell<String, String> =
-                    env.call("nth", (i, value))?.into_rust()?;
+                let nth: ConsCell<String, String> = env.call("nth", (i, value))?.into_rust()?;
                 vec.push(nth)
             }
 
@@ -92,9 +101,11 @@ impl<'e> FromLisp<'e> for Body {
 
         let received_type = value.env.call("type-of", [value])?;
 
+        // this validation is done in lisp and this shouldn't occur
+        // TODO refactor
         return value
             .env
-            .signal(request_body_type_error, ("type-of", received_type));
+            .signal(value.env.intern("reel-invalid-body-type")?, ("reel-valid-body-p", received_type));
     }
 }
 
@@ -195,7 +206,7 @@ fn make_client_request(
             Some(Body::Form(cells)) => {
                 let pairs: Vec<(String, String)> = cells
                     .into_iter()
-                    .map(|cell| (cell.car().clone(), cell.cdr().clone()))
+                    .map(|cell| cell.into())
                     .collect();
 
                 request.form(&pairs).send().await
