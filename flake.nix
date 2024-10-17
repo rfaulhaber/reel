@@ -71,6 +71,8 @@
           emacs
           nodePackages_latest.nodejs
           nodePackages_latest.eask
+
+          just
         ];
     in
       forAllSystems

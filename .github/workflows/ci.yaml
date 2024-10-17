@@ -8,6 +8,10 @@ on:
   pull_request:
     types: [opened, reopened]
 
+defaults:
+  run:
+    shell: nu {0}
+
 
 jobs:
   ci:
@@ -24,23 +28,19 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
-
+      - uses: hustcer/setup-nu@main
+        with:
+          version: "*"
+      - uses: extractions/setup-just@v2
       - uses: jcs090218/setup-emacs@master
         with:
           version: ${{ matrix.emacs-version }}
-
       - uses: emacs-eask/setup-eask@master
         with:
           version: 'snapshot'
       - name: Compile module
         run: |
-          cargo build
-          echo "Moving module"
-          mv ./target/debug/libreel.* .
-          eask install
+          just build
       - name: Run tests
         run: |
-          docker run -d --rm --name reel-test -p 8080:80 kennethreitz/httpbin
-          sleep 5s
-          eask test buttercup
-          docker stop reel-test
+          just test
