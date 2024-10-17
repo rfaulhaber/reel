@@ -2,7 +2,7 @@ set shell := ['nu', '-c']
 
 build env="dev":
     cargo build {{ if env == "release" { "--release" } else { "" } }}
-    cp ./target/{{ if env == "release" { "release" } else { "debug" } }}/libreel.so .
+    cp ./target/{{ if env == "release" { "release" } else { "debug" } }}/libreel.* .
     eask install
 
 test: (build "dev")
