@@ -6,6 +6,9 @@ build env="dev":
     eask install
 
 test: (build "dev")
+    -eask test buttercup
+
+test-full: (build "dev")
     just test-setup
     -eask test buttercup
     just test-teardown

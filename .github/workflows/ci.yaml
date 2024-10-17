@@ -25,6 +25,11 @@ jobs:
           - 28.2
           - 29.2
           - snapshot
+    services:
+      http-server:
+        image: kennethreitz/httpbin
+        ports:
+          - 8080:80
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
