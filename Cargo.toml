@@ -6,6 +6,9 @@ license = "GPL-3.0-or-later"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[workspace]
+members = ["http_server"]
+
 [lib]
 path = "src/lib.rs"
 crate-type = ["cdylib"]
@@ -14,3 +17,6 @@ crate-type = ["cdylib"]
 emacs = "0.19"
 tokio = { version = "1", features = ["rt-multi-thread"] }
 reqwest = { version = "0.12", default-features = false, features = ["http2", "charset", "multipart", "rustls-tls"] }
+
+[dev-dependencies]
+http_server = { path = "./http_server" }
