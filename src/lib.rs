@@ -1,8 +1,6 @@
 use emacs::{Env, FromLisp, IntoLisp, Result as EmacsResult};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
-use tokio::runtime;
-
 emacs::plugin_is_GPL_compatible!();
 
 #[derive(Debug)]
@@ -65,8 +63,7 @@ pub struct ReelResponse {
 
 #[derive(Debug)]
 pub struct ReelClient {
-    client: reqwest::Client,
-    runtime: runtime::Runtime,
+    client: reqwest::blocking::Client,
 }
 
 #[derive(Debug)]
@@ -103,9 +100,10 @@ impl<'e> FromLisp<'e> for Body {
 
         // this validation is done in lisp and this shouldn't occur
         // TODO refactor
-        return value
-            .env
-            .signal(value.env.intern("reel-invalid-body-type")?, ("reel-valid-body-p", received_type));
+        return value.env.signal(
+            value.env.intern("reel-invalid-body-type")?,
+            ("reel-valid-body-p", received_type),
+        );
     }
 }
 
@@ -124,11 +122,9 @@ fn init(env: &Env) -> EmacsResult<()> {
 #[emacs::defun(user_ptr)]
 fn make_client() -> EmacsResult<ReelClient> {
     Ok(ReelClient {
-        client: reqwest::Client::builder().use_rustls_tls().build()?,
-        runtime: runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap(),
+        client: reqwest::blocking::Client::builder()
+            .use_rustls_tls()
+            .build()?,
     })
 }
 
@@ -199,28 +195,20 @@ fn make_client_request(
         .request(reqwest::Method::from_bytes(method.as_bytes())?, url)
         .headers(headers.clone());
 
-    let response = reel_client.runtime.block_on(async {
-        // is there a less dumb way to do this
-        match body {
-            Some(Body::String(string_body)) => request.body(string_body).send().await,
-            Some(Body::Form(cells)) => {
-                let pairs: Vec<(String, String)> = cells
-                    .into_iter()
-                    .map(|cell| cell.into())
-                    .collect();
+    let response = match body {
+        Some(Body::String(string_body)) => request.body(string_body).send()?,
+        Some(Body::Form(cells)) => {
+            let pairs: Vec<(String, String)> = cells.into_iter().map(|cell| cell.into()).collect();
 
-                request.form(&pairs).send().await
-            }
-            None => request.send().await,
+            request.form(&pairs).send()?
         }
-    })?;
+        None => request.send()?,
+    };
 
     let status_code = response.status();
     let headers = response.headers().clone();
 
-    let body = reel_client
-        .runtime
-        .block_on(async { response.text().await })?;
+    let body = response.text()?;
 
     Ok(ReelResponse {
         status_code: status_code.into(),
