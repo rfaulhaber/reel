@@ -31,7 +31,7 @@
                 ('gnu/linux "so")
                 ('darwin "dylib")
                 ('windows-nt "dll")))
-         (path (format "libreel.%s" ext)))
+         (path (format "%s.%s" (if (eq system-type 'windows-nt) "reel" "libreel") ext)))
     ;; we load the rust output depending on the context
     ;; if the module exists as a sibling to this file, we immediately load that
     (if (file-exists-p (expand-file-name path))
