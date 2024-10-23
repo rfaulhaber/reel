@@ -41,6 +41,7 @@ jobs:
       - name: Compile module
         run: |
           just build
+          ls
       - name: install pueue for tests
         run: |
           cargo install --locked pueue
