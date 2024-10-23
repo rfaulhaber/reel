@@ -6,12 +6,11 @@ build env="dev":
     eask install
 
 test: (build "dev")
-    -eask test buttercup
-
-test-full: (build "dev")
-    just test-setup
-    -eask test buttercup
-    just test-teardown
+    cargo build -p http_server
+    pueued -d
+    pueue add "cargo run -p http_server"
+    eask test buttercup
+    pueue kill --all
 
 dist: (build "release")
     eask package
@@ -19,26 +18,3 @@ dist: (build "release")
 clean:
     cargo clean
     rm libreel.*
-
-[private]
-test-setup:
-    #!/usr/bin/env nu
-    print "preparing test environment"
-    ^docker run -d --rm --name reel-test -p 8080:80 kennethreitz/httpbin
-
-    mut state = (^docker inspect reel-test | from json | first | get State.status)
-
-    print $"state: ($state)"
-
-    while $state != "running" {
-        print "waiting..."
-        $state = (^docker inspect reel-test | from json | first | get State.status)
-    }
-
-    sleep 1sec
-
-[private]
-test-teardown:
-    #!/usr/bin/env nu
-    print "tearing down"
-    ^docker stop reel-test

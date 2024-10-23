@@ -73,6 +73,7 @@
           nodePackages_latest.eask
 
           just
+          pueue
         ];
     in
       forAllSystems

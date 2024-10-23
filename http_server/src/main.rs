@@ -19,6 +19,7 @@ struct Response<'r> {
 async fn main() {
     let app = Router::new()
         .route("/anything", any(anything))
+        .route("/anything/*rest", any(anything))
         .route("/status", any(status));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
@@ -26,9 +27,9 @@ async fn main() {
 }
 
 async fn anything(request: Request) -> String {
-    let headers = extract_headers(request.headers());
-
     let (parts, body) = request.into_parts();
+
+    let headers = extract_headers(&parts.headers);
 
     let query = parts.uri.query();
 
@@ -75,6 +76,12 @@ fn extract_query_parameters<'p>(query: &'p str) -> QueryParameters<'p> {
     map
 }
 
-fn extract_headers<'h>(headers: &HeaderMap<HeaderValue>) -> HashMap<&'h str, &'h str> {
-    todo!();
+fn extract_headers<'h>(headers: &'h HeaderMap<HeaderValue>) -> HashMap<&'h str, &'h str> {
+    let mut map = HashMap::new();
+
+    for header in headers.keys() {
+        map.insert(header.as_str(), headers.get(header).unwrap().to_str().unwrap());
+    }
+
+    map
 }
