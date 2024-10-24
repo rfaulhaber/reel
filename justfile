@@ -1,7 +1,7 @@
 set shell := ['nu', '-c']
 
 build env="dev":
-    cargo build {{ if env == "release" { "--release" } else { "" } }}
+    cargo build {{ if env == "release" { "--release" } else { "--workspace" } }}
     cp ./target/{{ if env == "release" { "release" } else { "debug" } }}/*reel.* .
     eask install
 
@@ -17,4 +17,5 @@ dist: (build "release")
 
 clean:
     cargo clean
+    eask clean all
     rm libreel.*

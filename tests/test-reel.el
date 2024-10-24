@@ -15,7 +15,8 @@
              (url (concat reel-test-endpoint path))
              (result (reel url)))
         (expect result :to-be-truthy)
-        (with-slots (status body) result
+        (let ((status (reel-response-status result))
+              (body (reel-response-body result)))
           (expect status :to-equal 200)
           (let ((json-body (json-parse-string body)))
             (expect (gethash "url" json-body) :to-equal path)
@@ -27,7 +28,8 @@
                     :method "POST"
                     :body "hello world")))
         (expect result :to-be-truthy)
-        (with-slots (status body) result
+        (let ((status (reel-response-status result))
+              (body (reel-response-body result)))
           (expect status :to-equal 200)
           (let ((json-body (json-parse-string body)))
             (expect (gethash "body" json-body) :to-equal "hello world")
@@ -38,7 +40,8 @@
               (reel url
                     :headers '(("header-1" . "value")))))
         (expect result :to-be-truthy)
-        (with-slots (status body) result
+        (let ((status (reel-response-status result))
+              (body (reel-response-body result)))
           (expect status :to-equal 200)
           (let ((json-body (json-parse-string body)))
             (expect (gethash "method" json-body) :to-equal "GET")
@@ -51,7 +54,8 @@
                     :method "POST"
                     :body '(("field-1" . "value")))))
         (expect result :to-be-truthy)
-        (with-slots (status body) result
+        (let ((status (reel-response-status result))
+              (body (reel-response-body result)))
           (expect status :to-equal 200)
           (let ((json-body (json-parse-string body)))
             (expect (gethash "method" json-body) :to-equal "POST")

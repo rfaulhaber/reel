@@ -11,7 +11,7 @@
     "*.el"
     "libreel.dylib"
     "libreel.so"
-    "libreel.dll"
+    "reel.dll"
     "out"
     "Cargo.toml"
     "Cargo.lock"
@@ -21,4 +21,4 @@
 
 (source "melpa")
 
-(depends-on "emacs" "27.1")
+(depends-on "emacs" "28.2")
